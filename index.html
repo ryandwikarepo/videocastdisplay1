@@ -112,7 +112,7 @@
         setupSinglePlayer(currentVideoId1);
     }
 
-    // Fungsi pembantu khusus mematikan CC/Subtitle secara paksa
+    // Fungsi mematikan CC/Subtitle secara paksa
     function forceDisableCC(targetPlayer) {
         if (!targetPlayer) return;
         try {
@@ -127,20 +127,31 @@
         }
     }
 
-    // FUNGSI BARU: Memaksa kualitas video ke 1080p dengan sistem retries berkala
-    function force1080pQuality(targetPlayer) {
+    // AGRESIF BYPASS: Memaksa menghancurkan status 'Auto' bawaan YouTube dan mengunci ke 1080p
+    function aggressiveForce1080p(targetPlayer) {
         if (!targetPlayer) return;
         try {
-            if (typeof targetPlayer.setPlaybackQuality === 'function') {
-                targetPlayer.setPlaybackQuality('hd1080');
+            // 1. Cek apakah video tersebut mendukung resolusi 1080p
+            if (typeof targetPlayer.getAvailableQualityLevels === 'function') {
+                const qualities = targetPlayer.getAvailableQualityLevels();
+                if (qualities.includes('hd1080')) {
+                    // Paksa set lewat API standar
+                    targetPlayer.setPlaybackQuality('hd1080');
+                }
             }
-            // Beberapa tipe browser membutuhkan pembaharuan opsi internal agar setelan mengunci
+            
+            // 2. Tembak menggunakan opsi penyiaran internal (Bypass mode otomatis)
             if (typeof targetPlayer.setOption === 'function') {
                 targetPlayer.setOption('playbackQuality', 'hd1080');
                 targetPlayer.setOption('vq', 'hd1080');
             }
+
+            // 3. Trik manipulasi muatan data agar player menganggap track auto telah mati
+            if (targetPlayer.getPlaybackQuality() !== 'hd1080' && typeof targetPlayer.setPlaybackQualityRange === 'function') {
+                targetPlayer.setPlaybackQualityRange('hd1080', 'hd1080');
+            }
         } catch(e) {
-            console.log("Gagal set kualitas:", e);
+            console.log("Gagal menembus proteksi kualitas:", e);
         }
     }
 
@@ -154,13 +165,13 @@
                 suggestedQuality: 'hd1080'
             });
             
-            // Retries berkala sesaat setelah pergantian video sukses diproses
+            // Lakukan pemboman perintah secara berkala selama 5 detik awal video berjalan
             let retryCount = 0;
             const qualityInterval = setInterval(() => {
-                force1080pQuality(player1);
+                aggressiveForce1080p(player1);
                 forceDisableCC(player1);
                 retryCount++;
-                if (retryCount > 6) clearInterval(qualityInterval); // Coba paksa selama 3 detik awal
+                if (retryCount > 10) clearInterval(qualityInterval); 
             }, 500);
 
             setTimeout(() => {
@@ -182,7 +193,7 @@
                     'modestbranding': 1,
                     'fs': 1,            
                     'iv_load_policy': 3,
-                    'vq': 'hd1080',      /* Parameter dasar untuk mengunci kualitas HD 1080p */
+                    'vq': 'hd1080',      
                     'cc_load_policy': 0, 
                     'cc_lang_pref': 'none'
                 },
@@ -191,13 +202,13 @@
                         event.target.mute();
                         event.target.playVideo();
                         
-                        // Eksekusi paksa kualitas & matikan CC secara simultan ketika player siap
+                        // Eksekusi pemaksaan berlapis sesaat setelah player siap
                         let retryCount = 0;
                         const readyInterval = setInterval(() => {
-                            force1080pQuality(event.target);
+                            aggressiveForce1080p(event.target);
                             forceDisableCC(event.target);
                             retryCount++;
-                            if (retryCount > 6) clearInterval(readyInterval);
+                            if (retryCount > 10) clearInterval(readyInterval);
                         }, 500);
 
                         setTimeout(() => {
@@ -205,9 +216,9 @@
                         }, 1000);
                     },
                     'onStateChange': (event) => {
-                        // Jalankan ulang pengunci kualitas setiap status video berubah ke "PLAYING"
+                        // Kunci ulang resolusi setiap kali status video beralih ke PLAYING (mencegah auto turun di tengah jalan)
                         if (event.data === YT.PlayerState.PLAYING) {
-                            force1080pQuality(event.target);
+                            aggressiveForce1080p(event.target);
                             forceDisableCC(event.target);
                         }
                         if (event.data === YT.PlayerState.ENDED) {
