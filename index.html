@@ -86,11 +86,10 @@
 </head>
 <body>
 
-<!-- === KONTEN UTAMA (LANGSUNG AKTIF TANPA PASSWORD) === -->
+<!-- === KONTEN UTAMA === -->
 <div id="mainContent" class="fullscreen-container">
     <div id="playerWrapper" class="video-wrapper">
         <div id="player1"></div>
-        <!-- Tombol untuk mengaktifkan True Fullscreen di TV/Monitor -->
         <button class="fullscreen-btn" onclick="toggleFullscreen('mainContent')" title="Layar Penuh">
             <svg viewBox="0 0 24 24">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -102,23 +101,20 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script>
-    // Menghubungkan ke database Supabase yang sama
     const SUPABASE_URL = "https://zrycfquuqcygftngkwku.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_D7uzajVgAFW_8EC5hQp57g_IBiyAHYO"; 
     
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let player1;
-    let currentVideoId1 = 'bRNlrdfKNd4'; // Video default jika database kosong
+    let currentVideoId1 = 'bRNlrdfKNd4'; 
 
-    // Langsung jalankan aplikasi saat window selesai dimuat tanpa menunggu password
     window.onload = function() {
         initializeApplication();
     };
 
     async function initializeApplication() {
         try {
-            // HANYA MENGAMBIL DATA DARI PLAYER ID 1
             const res1 = await supabaseClient
                 .from('video_settings')
                 .select('video_id')
@@ -137,7 +133,6 @@
             }
         }
 
-        // Realtime Sync khusus memantau perubahan Player ID 1 saja
         supabaseClient
             .channel('schema-db-changes')
             .on(
@@ -157,6 +152,21 @@
         setupSinglePlayer(currentVideoId1);
     }
 
+    // Fungsi pembantu khusus mematikan CC/Subtitle secara paksa
+    function forceDisableCC(targetPlayer) {
+        if (!targetPlayer) return;
+        try {
+            if (typeof targetPlayer.unloadModule === 'function') {
+                targetPlayer.unloadModule('captions');
+            }
+            if (typeof targetPlayer.setOption === 'function') {
+                targetPlayer.setOption('captions', 'track', {});
+            }
+        } catch(e) {
+            console.log("CC Unload skip:", e);
+        }
+    }
+
     function setupSinglePlayer(videoId) {
         if (!videoId) return;
 
@@ -169,6 +179,7 @@
             setTimeout(() => {
                 player1.mute();
                 player1.setPlaybackQuality('hd1080');
+                forceDisableCC(player1); // Matikan CC saat ganti video
                 player1.playVideo();
             }, 500);
         } else {
@@ -187,12 +198,14 @@
                     'fs': 0,
                     'iv_load_policy': 3,
                     'vq': 'hd1080',
-                    'cc_load_policy': 0
+                    'cc_load_policy': 0, // Request awal matikan CC
+                    'cc_lang_pref': 'none'
                 },
                 events: {
                     'onReady': (event) => {
                         event.target.mute();
                         event.target.setPlaybackQuality('hd1080');
+                        forceDisableCC(event.target); // Matikan CC saat player siap
                         event.target.playVideo();
                         setTimeout(() => {
                             if (event.target.getPlayerState() !== 1) event.target.playVideo();
@@ -201,6 +214,7 @@
                     'onStateChange': (event) => {
                         if (event.data === YT.PlayerState.PLAYING) {
                             event.target.setPlaybackQuality('hd1080');
+                            forceDisableCC(event.target); // Matikan CC sesaat setelah video mulai berputar
                         }
                         if (event.data === YT.PlayerState.ENDED) {
                             event.target.playVideo();
@@ -211,7 +225,6 @@
         }
     }
 
-    // Fungsi pengendali tombol Fullscreen melayang
     function toggleFullscreen(wrapperId) {
         const elem = document.getElementById(wrapperId);
         if (!document.fullscreenElement) {
