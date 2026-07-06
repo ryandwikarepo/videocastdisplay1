@@ -127,6 +127,23 @@
         }
     }
 
+    // FUNGSI BARU: Memaksa kualitas video ke 1080p dengan sistem retries berkala
+    function force1080pQuality(targetPlayer) {
+        if (!targetPlayer) return;
+        try {
+            if (typeof targetPlayer.setPlaybackQuality === 'function') {
+                targetPlayer.setPlaybackQuality('hd1080');
+            }
+            // Beberapa tipe browser membutuhkan pembaharuan opsi internal agar setelan mengunci
+            if (typeof targetPlayer.setOption === 'function') {
+                targetPlayer.setOption('playbackQuality', 'hd1080');
+                targetPlayer.setOption('vq', 'hd1080');
+            }
+        } catch(e) {
+            console.log("Gagal set kualitas:", e);
+        }
+    }
+
     function setupSinglePlayer(videoId) {
         if (!videoId) return;
 
@@ -136,10 +153,18 @@
                 startSeconds: 0,
                 suggestedQuality: 'hd1080'
             });
+            
+            // Retries berkala sesaat setelah pergantian video sukses diproses
+            let retryCount = 0;
+            const qualityInterval = setInterval(() => {
+                force1080pQuality(player1);
+                forceDisableCC(player1);
+                retryCount++;
+                if (retryCount > 6) clearInterval(qualityInterval); // Coba paksa selama 3 detik awal
+            }, 500);
+
             setTimeout(() => {
                 player1.mute();
-                player1.setPlaybackQuality('hd1080');
-                forceDisableCC(player1); // Matikan CC saat ganti video
                 player1.playVideo();
             }, 500);
         } else {
@@ -155,26 +180,35 @@
                     'controls': 1,      
                     'rel': 0,
                     'modestbranding': 1,
-                    'fs': 1,            /* DIAKTIFKAN: Mengizinkan tombol fullscreen bawaan player */
+                    'fs': 1,            
                     'iv_load_policy': 3,
-                    'vq': 'hd1080',
+                    'vq': 'hd1080',      /* Parameter dasar untuk mengunci kualitas HD 1080p */
                     'cc_load_policy': 0, 
                     'cc_lang_pref': 'none'
                 },
                 events: {
                     'onReady': (event) => {
                         event.target.mute();
-                        event.target.setPlaybackQuality('hd1080');
-                        forceDisableCC(event.target); // Matikan CC saat player siap
                         event.target.playVideo();
+                        
+                        // Eksekusi paksa kualitas & matikan CC secara simultan ketika player siap
+                        let retryCount = 0;
+                        const readyInterval = setInterval(() => {
+                            force1080pQuality(event.target);
+                            forceDisableCC(event.target);
+                            retryCount++;
+                            if (retryCount > 6) clearInterval(readyInterval);
+                        }, 500);
+
                         setTimeout(() => {
                             if (event.target.getPlayerState() !== 1) event.target.playVideo();
                         }, 1000);
                     },
                     'onStateChange': (event) => {
+                        // Jalankan ulang pengunci kualitas setiap status video berubah ke "PLAYING"
                         if (event.data === YT.PlayerState.PLAYING) {
-                            event.target.setPlaybackQuality('hd1080');
-                            forceDisableCC(event.target); // Matikan CC sesaat setelah video mulai berputar
+                            force1080pQuality(event.target);
+                            forceDisableCC(event.target);
                         }
                         if (event.data === YT.PlayerState.ENDED) {
                             event.target.playVideo();
