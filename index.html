@@ -19,7 +19,7 @@
             overflow: hidden; 
         }
 
-        /* === STYLE KONTEN UTAMA FULLSCREEN === */
+        /* === STYLE KONTEN UTAMA === */
         .fullscreen-container {
             position: fixed;
             top: 0;
@@ -43,41 +43,6 @@
             width: 100%;
             height: calc(100% + 120px);
         }
-
-        /* === TOMBOL FULLSCREEN MELAYANG === */
-        .fullscreen-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 99;
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease, background 0.2s;
-        }
-        .fullscreen-btn:hover {
-            background: rgba(255, 0, 0, 0.8);
-            border-color: #ff0000;
-        }
-        .video-wrapper:hover .fullscreen-btn {
-            opacity: 1;
-        }
-        .fullscreen-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
         .hidden {
             display: none !important;
         }
@@ -90,11 +55,6 @@
 <div id="mainContent" class="fullscreen-container">
     <div id="playerWrapper" class="video-wrapper">
         <div id="player1"></div>
-        <button class="fullscreen-btn" onclick="toggleFullscreen('mainContent')" title="Layar Penuh">
-            <svg viewBox="0 0 24 24">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-            </svg>
-        </button>
     </div>
 </div>
 
@@ -195,10 +155,10 @@
                     'controls': 1,      
                     'rel': 0,
                     'modestbranding': 1,
-                    'fs': 0,
+                    'fs': 1,            /* DIAKTIFKAN: Mengizinkan tombol fullscreen bawaan player */
                     'iv_load_policy': 3,
                     'vq': 'hd1080',
-                    'cc_load_policy': 0, // Request awal matikan CC
+                    'cc_load_policy': 0, 
                     'cc_lang_pref': 'none'
                 },
                 events: {
@@ -222,17 +182,6 @@
                     }
                 }
             });
-        }
-    }
-
-    function toggleFullscreen(wrapperId) {
-        const elem = document.getElementById(wrapperId);
-        if (!document.fullscreenElement) {
-            if (elem.requestFullscreen) elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
         }
     }
 </script>
